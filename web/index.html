@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShareLink DuoCast — Multi-PC Mouse, Keyboard & Clipboard Sharing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-background">
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+  </div>
+
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-container">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+            <path d="M7 10h10M12 7v6" stroke="rgba(34, 211, 238, 0.9)" stroke-width="1.5" stroke-dasharray="2 2"></path>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>ShareLink <span class="badge-accent">DuoCast</span></h1>
+          <p class="subtitle">Cross-PC Mouse, Keyboard & Clipboard Mesh</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <div id="connectionStatusBadge" class="status-pill status-disconnected">
+        <span class="status-dot"></span>
+        <span id="statusText">Scanning Network...</span>
+        <span id="pingBadge" class="ping-badge hidden">0 ms</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="emergency-pill" title="Press Ctrl+Alt+Escape anytime to instantly return cursor to this PC">
+        <span class="hotkey-label">Escape Hotkey:</span>
+        <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Esc</kbd>
+      </div>
+      <button id="btnEmergency" class="btn-emergency" title="Force Cursor Return to Local Screen">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+        Recenter Mouse
+      </button>
+    </div>
+  </header>
+
+  <main class="dashboard-container">
+    <!-- Top Row: Screen Layout Visualizer -->
+    <section class="card layout-card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h2>Virtual Monitor Arrangement</h2>
+          <p class="card-subtitle">Every connected PC is placed on the edge it was assigned. Move the cursor across a glowing boundary to take control of that machine.</p>
+        </div>
+        <span class="pill-counter" id="peerCountBadge">0 PCs Paired</span>
+      </div>
+
+      <div class="visualizer-stage" id="visualizerStage">
+        <!-- Interactive Monitor Representation -->
+        <div class="stage-grid-bg"></div>
+
+        <!-- Each slot holds whichever peer was auto-assigned to that edge.
+             Populated by app.js from state.peers. -->
+        <div class="peer-slot slot-top" id="slotTop"></div>
+        <div class="peer-slot slot-left" id="slotLeft"></div>
+
+        <div class="peer-slot slot-center" id="slotCenter">
+          <div class="monitor-box local-monitor" id="localMonitor">
+            <div class="monitor-top-bar">
+              <span class="monitor-tag">THIS PC (HOST)</span>
+              <span class="resolution-badge" id="localResBadge">1920 × 1080</span>
+            </div>
+            <div class="monitor-body">
+              <div class="monitor-pc-name" id="localHostName">DESKTOP-LOCAL</div>
+              <div class="monitor-ip" id="localIpBadge">192.168.1.100</div>
+              <div class="active-badge" id="localFocusBadge">● ACTIVE FOCUS</div>
+            </div>
+            <div class="monitor-stand"></div>
+          </div>
+        </div>
+
+        <div class="peer-slot slot-right" id="slotRight"></div>
+        <div class="peer-slot slot-bottom" id="slotBottom"></div>
+      </div>
+
+      <!-- Peers beyond the 4th have no free screen edge; still connected, driven from here -->
+      <div class="overflow-peers hidden" id="overflowPeers"></div>
+
+      <div class="stage-footer">
+          <div class="instruction-tip">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Moving the cursor to the highlighted border switches control to the remote PC. Return anytime by bumping back or pressing <kbd>Ctrl+Alt+Esc</kbd>.</span>
+          </div>
+        </div>
+      </section>
+
+    <!-- Middle Grid: LAN Discovery Radar & Pairing Controls -->
+    <div class="dual-columns">
+      <!-- LAN Discovery Radar -->
+      <section class="card discovery-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="radar-dot-pulse"></div>
+            <h2>Zero-Config LAN Discovery</h2>
+          </div>
+          <span class="pill-counter" id="discoveredCount">0 Detected</span>
+        </div>
+        <p class="card-subtitle">Other PCs running ShareLink on your Wi-Fi/Ethernet appear automatically below. Click <strong>Connect</strong> to pair instantly.</p>
+
+        <div class="discovery-list" id="discoveryList">
+          <!-- Discovered PCs populated dynamically -->
+          <div class="empty-discovery" id="emptyDiscovery">
+            <div class="radar-animation">
+              <div class="radar-circle circle-1"></div>
+              <div class="radar-circle circle-2"></div>
+              <div class="radar-circle circle-3"></div>
+              <div class="radar-sweep"></div>
+            </div>
+            <p>Broadcasting UDP beacon on local subnet...</p>
+            <span class="text-muted">Launch ShareLink on your second PC to pair in 1-click.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pairing & Direct Connect -->
+      <section class="card pairing-card">
+        <div class="card-header">
+          <h2>Pairing & Access Code</h2>
+          <div class="toggle-wrapper">
+            <label class="toggle-switch">
+              <input type="checkbox" id="chkAutoAccept" checked>
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">Auto-Pair on LAN</span>
+          </div>
+        </div>
+
+        <div class="pin-showcase">
+          <div class="pin-box-wrapper">
+            <span class="pin-label">THIS PC'S PAIRING PIN</span>
+            <div class="pin-display">
+              <span id="pinCode">------</span>
+              <button id="btnCopyPin" class="btn-icon" title="Copy PIN">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <p class="pin-hint">If Auto-Pair is disabled, peers must enter this 6-digit PIN to establish a connection.</p>
+        </div>
+
+        <hr class="card-divider">
+
+        <div class="manual-connect-group">
+          <h3>Manual IP Connect</h3>
+          <p class="card-subtitle">Use if router blocks UDP broadcast packets.</p>
+          <div class="input-row">
+            <input type="text" id="inputTargetIp" placeholder="e.g. 192.168.1.150" class="input-field">
+            <input type="text" id="inputTargetPort" placeholder="42898" value="42898" class="input-field port-input">
+            <input type="text" id="inputTargetPin" placeholder="PIN" class="input-field pin-input">
+            <button id="btnManualConnect" class="btn-primary">Connect</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- File Transfer -->
+    <section class="card transfer-card" style="grid-column: span 3;">
+      <div class="card-header">
+        <h2>File Transfer</h2>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span class="text-muted" id="receiveDirLabel" style="font-size:12px;"></span>
+          <button id="btnPickSend" class="btn-primary">Send File to Peer</button>
+        </div>
+      </div>
+      <p class="card-subtitle">Sends any-size files directly to the paired PC over a dedicated connection. Received files land in your Downloads/ShareLink folder.</p>
+      <div id="transferList" style="display:flex; flex-direction:column; gap:8px; max-height:180px; overflow-y:auto;">
+        <div class="text-muted" id="noTransfers" style="font-size:13px;">No transfers yet.</div>
+      </div>
+    </section>
+
+    <!-- Bottom Row: Telemetry, Clipboard & Activity Logs -->
+    <div class="triple-columns">
+      <!-- Live Telemetry -->
+      <section class="card telemetry-card">
+        <div class="card-header">
+          <h2>Performance & Stats</h2>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-value" id="statLatency">-- <span class="stat-unit">ms</span></div>
+            <div class="stat-label">Network Ping (TCP_NODELAY)</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="statPackets">0</div>
+            <div class="stat-label">Input Packets Streamed</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="statClipboard">0</div>
+            <div class="stat-label">Clipboard Syncs</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="statActiveMode">LOCAL</div>
+            <div class="stat-label">Current Active Focus</div>
+          </div>
+        </div>
+
+        <div class="quick-toggles">
+          <label class="toggle-item">
+            <input type="checkbox" id="chkClipboardSync" checked>
+            <span>Sync Clipboard (Text & Snippets)</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Settings & Fine Tuning -->
+      <section class="card settings-card">
+        <div class="card-header">
+          <h2>Transition Tuning</h2>
+        </div>
+        <div class="setting-item">
+          <div class="setting-header">
+            <span>Edge Trigger Zone</span>
+            <span class="setting-value-badge" id="valEdgeThreshold">3 px</span>
+          </div>
+          <input type="range" id="rangeEdgeThreshold" min="1" max="15" value="3" class="slider">
+          <span class="setting-desc">Width of border pixels required to trigger cross-over.</span>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-header">
+            <span>Edge Delay (Anti-Slip)</span>
+            <span class="setting-value-badge" id="valEdgeDelay">30 ms</span>
+          </div>
+          <input type="range" id="rangeEdgeDelay" min="0" max="250" step="10" value="30" class="slider">
+          <span class="setting-desc">Prevents accidental switches when clicking window scrollbars.</span>
+        </div>
+
+        <div class="test-actions">
+          <button id="btnTestClipboard" class="btn-secondary">Test Local Clipboard Copy</button>
+        </div>
+      </section>
+
+      <!-- Live Event Feed -->
+      <section class="card log-card">
+        <div class="card-header">
+          <h2>Live Activity Stream</h2>
+          <button id="btnClearLogs" class="btn-subtle">Clear</button>
+        </div>
+        <div class="log-stream" id="logStream">
+          <div class="log-entry log-info"><span class="log-time">--:--:--</span> Initializing system...</div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-left">
+      <span>ShareLink DuoCast Engine v1.0.1</span> • <span>Fast Native Win32 Input Hook</span> • <span>Zero Dependency Install</span>
+    </div>
+    <div class="footer-right">
+      <span id="socketStatusText">Connecting to engine daemon...</span>
+    </div>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.bak
+
+# PyInstaller / Build
+build/
+dist/
+*.spec.bak
+
+# Local Configuration & Logs
+config.json
+*.log
+sharelink_crash.log
+
+# IDE & Tooling
+.vscode/
+.idea/
+.hyperfalcon/

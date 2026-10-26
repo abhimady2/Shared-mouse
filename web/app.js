@@ -80,6 +80,8 @@ class ShareLinkClient {
     this.transferList = document.getElementById("transferList");
     this.noTransfers = document.getElementById("noTransfers");
     this.receiveDirLabel = document.getElementById("receiveDirLabel");
+    this.dropOverlay = document.getElementById("dropOverlay");
+    this.dropHint = document.getElementById("dropHint");
   }
 
   bindEvents() {
@@ -103,6 +105,16 @@ class ShareLinkClient {
     // Emergency Recenter
     this.btnEmergency.addEventListener("click", () => {
       this.sendAction("emergency");
+    });
+
+    // Minimize to tray (native window only - no-op in a browser tab)
+    const btnTray = document.getElementById("btnMinimizeTray");
+    btnTray.addEventListener("click", () => {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.minimize_to_tray();
+      } else {
+        this.addLogEntry("Tray is only available in the native window.", "info");
+      }
     });
 
     // Copy PIN
@@ -175,24 +187,55 @@ class ShareLinkClient {
       const inp = document.createElement("input");
       inp.type = "file";
       inp.onchange = () => {
-        if (!inp.files.length) return;
-        const file = inp.files[0];
-        const reader = new FileReader();
-        // ponytail: browser path reads file into memory; native window streams disk-to-disk
-        reader.onload = () => this.sendFileBytes(file.name, new Uint8Array(reader.result));
-        reader.readAsArrayBuffer(file);
+        if (inp.files.length) this.sendFileBytes(inp.files[0].name, inp.files[0]);
       };
       inp.click();
     });
+
+    // Drag-and-drop send: drop files anywhere on the window. Targets the peer
+    // currently holding the cursor, falling back to the first paired PC.
+    let dragDepth = 0;
+    window.addEventListener("dragenter", (e) => {
+      e.preventDefault();
+      dragDepth++;
+      if (this.dropOverlay.classList.contains("hidden")) {
+        const n = (this.state && this.state.peers || []).length;
+        this.dropHint.innerText = n
+          ? (this.state.active_peer_id ? "Will send to the PC holding the cursor" : "Will send to the paired PC")
+          : "No PC paired yet";
+        this.dropOverlay.classList.remove("hidden");
+      }
+    });
+    window.addEventListener("dragover", (e) => e.preventDefault());
+    window.addEventListener("dragleave", (e) => {
+      e.preventDefault();
+      if (--dragDepth <= 0) { dragDepth = 0; this.dropOverlay.classList.add("hidden"); }
+    });
+    window.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dragDepth = 0;
+      this.dropOverlay.classList.add("hidden");
+      if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+      const s = this.state || {};
+      const peerId = s.active_peer_id || ((s.peers || [])[0] || {}).device_id || "";
+      if (!peerId) {
+        this.addLogEntry("No PC paired - connect first, then drop files.", "warning");
+        return;
+      }
+      for (const file of e.dataTransfer.files) this.sendFileBytes(file.name, file, peerId);
+    });
   }
 
-  async sendFileBytes(name, bytes) {
-    // Upload to local engine, which forwards it to the peer
-    const res = await fetch("/api/upload_file", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Filename": encodeURIComponent(name) },
-      body: new Blob([bytes]),
-    });
+  async sendFileBytes(name, fileOrBytes, peerId = "") {
+    // Upload to local engine, which forwards it to the peer. A File body streams
+    // straight from disk; the legacy bytes path is kept for compatibility.
+    const body = fileOrBytes instanceof Blob ? fileOrBytes : new Blob([fileOrBytes]);
+    const headers = {
+      "Content-Type": "application/octet-stream",
+      "X-Filename": encodeURIComponent(name),
+    };
+    if (peerId) headers["X-Peer-Id"] = peerId;
+    const res = await fetch("/api/upload_file", { method: "POST", headers, body });
     const out = await res.json();
     if (out.status !== "OK") this.addLogEntry(`Send failed: ${out.msg}`, "warning");
   }

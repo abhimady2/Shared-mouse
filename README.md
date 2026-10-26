@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="web/logo.png" alt="ShareLink DuoCast Logo" width="120" height="120">
+</p>
+
 # ShareLink DuoCast 🚀
 ### Cross-PC Mouse, Keyboard & Clipboard Mesh for Windows
 

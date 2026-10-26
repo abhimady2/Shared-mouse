@@ -20,7 +20,7 @@ a = Analysis(
         "webview.platforms.edgechromium",
         "pystray._win32",
     ],
-    excludes=["tkinter", "numpy", "pandas", "PIL", "matplotlib", "pytest"],
+    excludes=["tkinter", "numpy", "pandas", "matplotlib", "pytest"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)
@@ -38,4 +38,5 @@ exe = EXE(
     upx=True,
     console=False,
     disable_windowed_traceback=False,
+    icon="web/icon.ico",
 )

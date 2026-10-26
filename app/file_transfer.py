@@ -39,8 +39,8 @@ class FileTransferManager:
         if self.on_update_cb:
             self.on_update_cb(snapshot)
 
-    def send_file(self, filepath: str) -> bool:
-        peer = conn_manager.get_peer_info()
+    def send_file(self, filepath: str, peer_id: str = "") -> bool:
+        peer = conn_manager.get_peer_info(peer_id or None)
         if not peer:
             return False
         path = Path(filepath)

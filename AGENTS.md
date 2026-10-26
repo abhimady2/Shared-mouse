@@ -28,5 +28,7 @@ ShareLink DuoCast is a high-performance, low-latency cross-PC mouse, keyboard, a
 3. **No Regressions**: Run compilation, build, or test commands after modifications to ensure stability.
 
 ## 🔄 Current State
-- **Status**: Active (v1.0.1). Input path with worker queue and throttled re-center, minimize-to-system-tray, file transfers, and portable PyInstaller build.
+- **js_api bridge**: `DashboardApi` in `main.py` (via `webview.create_window(js_api=...)`) is the only JS→Python channel; dashboard buttons that need native actions go through it.
+- **Current State**: Active (v1.0.3). Minimal neon mesh app logo applied everywhere (dashboard header, browser favicon, native system tray, README, and Windows executable icon). Input path with worker queue and move coalescing; cursor re-centers to anchor after every event. Drag-and-drop file send, minimize-to-tray button + auto-hide on minimize, file transfers, portable PyInstaller build.
 - **Next Steps**: Maintain and enhance cross-platform or multi-display edge geometries.
+

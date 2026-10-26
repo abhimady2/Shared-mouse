@@ -28,7 +28,7 @@ from app.connection import conn_manager
 from app import file_transfer as file_transfer_module
 from app.file_transfer import file_transfer
 
-__version__ = "1.0.1"
+__version__ = "1.0.3"
 
 app = FastAPI(title="ShareLink DuoCast", version=__version__)
 
@@ -39,6 +39,10 @@ app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 @app.get("/")
 async def get_index():
     return FileResponse(str(WEB_DIR / "index.html"))
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def get_favicon():
+    return FileResponse(str(WEB_DIR / "favicon.ico"))
 
 @app.get("/api/status")
 async def get_status():
@@ -60,12 +64,13 @@ async def api_upload_file(request: Request):
     import tempfile
     from urllib.parse import unquote
     name = unquote(request.headers.get("x-filename", "upload.bin"))
+    peer_id = request.headers.get("x-peer-id", "")
     tmp = Path(tempfile.gettempdir()) / f"sharelink_{int(time.time())}_{name}"
     try:
         with open(tmp, "wb") as f:
             async for chunk in request.stream():
                 f.write(chunk)
-        ok = file_transfer.send_file(str(tmp))
+        ok = file_transfer.send_file(str(tmp), peer_id)
         return {"status": "OK" if ok else "ERROR", "msg": "" if ok else "Not connected"}
     except Exception as e:
         return {"status": "ERROR", "msg": str(e)}
@@ -177,31 +182,60 @@ def open_browser_delayed(url: str, delay: float = 1.2):
     t.start()
 
 
+class DashboardApi:
+    """Bridge exposed to dashboard JS as window.pywebview.api."""
+
+    window = None
+    icon = None
+
+    def minimize_to_tray(self):
+        if self.window:
+            self.window.hide()
+        if self.icon:
+            self.icon.visible = True
+
+
 def run_webview(url: str, web_port: int):
     """Runs the dashboard in a native lightweight window (Edge WebView2 on Windows)."""
     import webview
+    api = DashboardApi()
     window = webview.create_window(
         "ShareLink DuoCast",
         url,
         width=1180,
         height=800,
         min_size=(900, 620),
+        js_api=api,
     )
-    _attach_tray(window)
+    api.window = window
+    _attach_tray(window, api)
     webview.start()
 
 
-def _attach_tray(window):
-    """Minimize-to-tray: minimizing the native window hides it; the tray icon
-    restores it or exits the app (engine keeps sharing input while hidden)."""
+def _attach_tray(window, api):
+    """Minimize-to-tray: minimizing the native window (or the dashboard button)
+    hides it; the tray icon restores it or exits the app (engine keeps sharing
+    input while hidden)."""
     try:
         import pystray
         from PIL import Image, ImageDraw
     except ImportError:
         return  # ponytail: tray is a nicety, not core; skip if deps missing
 
-    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    ImageDraw.Draw(img).ellipse((6, 6, 58, 58), fill=(37, 99, 235))
+    img = None
+    icon_file = WEB_DIR / "favicon.png"
+    if not icon_file.exists():
+        icon_file = WEB_DIR / "logo.png"
+    if icon_file.exists():
+        try:
+            with Image.open(icon_file) as src_img:
+                img = src_img.resize((64, 64), Image.Resampling.LANCZOS).copy()
+        except Exception:
+            img = None
+
+    if img is None:
+        img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+        ImageDraw.Draw(img).ellipse((6, 6, 58, 58), fill=(37, 99, 235))
 
     icon = pystray.Icon(
         "sharelink", img, "ShareLink DuoCast",
@@ -216,6 +250,7 @@ def _attach_tray(window):
         icon.visible = True
 
     window.events.minimized += on_minimized
+    api.icon = icon
     # pystray runs its own message loop; a daemon thread keeps the main thread
     # free for WebView2, which must own it on Windows.
     threading.Thread(target=icon.run, daemon=True, name="TrayIcon").start()

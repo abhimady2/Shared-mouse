@@ -7,6 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+  <link rel="alternate icon" type="image/x-icon" href="/static/favicon.ico">
+  <link rel="apple-touch-icon" href="/static/icon.png">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -20,12 +23,7 @@
     <div class="header-left">
       <div class="logo-container">
         <div class="logo-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
-            <path d="M7 10h10M12 7v6" stroke="rgba(34, 211, 238, 0.9)" stroke-width="1.5" stroke-dasharray="2 2"></path>
-          </svg>
+          <img src="/static/logo.svg" alt="ShareLink DuoCast Logo" class="app-logo-img">
         </div>
         <div class="logo-text">
           <h1>ShareLink <span class="badge-accent">DuoCast</span></h1>
@@ -54,6 +52,14 @@
           <line x1="9" y1="9" x2="15" y2="15"></line>
         </svg>
         Recenter Mouse
+      </button>
+      <button id="btnMinimizeTray" class="btn-secondary" title="Hide this dashboard to the system tray - sharing keeps running">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+          <line x1="4" y1="19" x2="10" y2="19"></line>
+        </svg>
+        Minimize to Tray
       </button>
     </div>
   </header>
@@ -276,12 +282,21 @@
 
   <footer class="app-footer">
     <div class="footer-left">
-      <span>ShareLink DuoCast Engine v1.0.1</span> • <span>Fast Native Win32 Input Hook</span> • <span>Zero Dependency Install</span>
+      <span>ShareLink DuoCast Engine v1.0.3</span> • <span>Fast Native Win32 Input Hook</span> • <span>Zero Dependency Install</span>
     </div>
     <div class="footer-right">
       <span id="socketStatusText">Connecting to engine daemon...</span>
     </div>
   </footer>
+
+  <!-- Drag-and-drop send: drop files anywhere on the window -->
+  <div id="dropOverlay" class="drop-overlay hidden">
+    <div class="drop-inner">
+      <div class="drop-icon">⇪</div>
+      <div class="drop-title">Drop files to send</div>
+      <div class="drop-hint" id="dropHint"></div>
+    </div>
+  </div>
 
   <script src="/static/app.js"></script>
 </body>

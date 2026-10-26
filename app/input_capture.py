@@ -367,13 +367,14 @@ class InputCaptureManager:
             self._pend_dx += dx
             self._pend_dy += dy
 
-        # Re-center only once drift gets large. Re-centering on every event floods
-        # the hook with synthetic moves (each SetCursorPos generates one) and the
-        # late ones slip past is_repositioning as 1-2px ghost deltas = jitter.
-        if abs(dx) > 150 or abs(dy) > 150:
-            self.is_repositioning = True
-            injector.set_cursor_pos(self.anchor_x, self.anchor_y)
-            self.is_repositioning = False
+        # Re-center on EVERY event: dx/dy are measured from the anchor, so the
+        # reset is what turns them into incremental deltas. Skipping it makes dx
+        # cumulative (remote cursor accelerates away, local cursor pins at the
+        # screen edge). The synthetic event this generates reads dx=0/dy=0 and
+        # is filtered by the early return above.
+        self.is_repositioning = True
+        injector.set_cursor_pos(self.anchor_x, self.anchor_y)
+        self.is_repositioning = False
 
     def _on_mouse_click(self, x, y, button, pressed):
         if self.mode != MODE_REMOTE_OUT:

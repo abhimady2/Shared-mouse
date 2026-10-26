@@ -223,7 +223,9 @@ def _attach_tray(window, api):
         return  # ponytail: tray is a nicety, not core; skip if deps missing
 
     img = None
-    icon_file = WEB_DIR / "favicon.png"
+    icon_file = WEB_DIR / "tray.png"
+    if not icon_file.exists():
+        icon_file = WEB_DIR / "favicon.png"
     if not icon_file.exists():
         icon_file = WEB_DIR / "logo.png"
     if icon_file.exists():
